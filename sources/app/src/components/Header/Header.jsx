@@ -49,7 +49,7 @@ class Header extends Component {
   }
 
   render() {
-    const { nav, descriptors } = this.props;
+    const { nav, items } = this.props;
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     return (
