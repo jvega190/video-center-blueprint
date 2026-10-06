@@ -1,11 +1,12 @@
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { isNullOrUndefined } from '../../utils';
-import { getDescriptor } from '@craftercms/redux';
+import { getItem } from '@craftercms/redux';
 import { setVideoDocked } from '../../actions/videoPlayerActions';
 import { setHeaderGhost } from '../../actions/headerActions';
 import Slider from '../../components/Slider/Slider.jsx';
 import VideoCategories from '../../components/VideoCategories/VideoCategories.jsx';
+import { parseDescriptor } from "@craftercms/content";
 
 class Home extends Component {
   constructor(props) {
@@ -14,8 +15,8 @@ class Home extends Component {
 
     this.descriptorUrl = '/site/website/index.xml';
 
-    if (isNullOrUndefined(this.props.descriptors[this.descriptorUrl])) {
-      this.props.getDescriptor(this.descriptorUrl);
+    if (isNullOrUndefined(this.props.items[this.descriptorUrl])) {
+      this.props.getItem(this.descriptorUrl);
     }
   }
 
@@ -27,112 +28,111 @@ class Home extends Component {
     this.props.setHeaderGhost(false);
   }
 
-  renderSlider(descriptor) {
-    if (descriptor.page.slider_o.item) {
+  renderSlider(item) {
+    if (item.slider_o) {
       return (
         <Slider
-          data={descriptor.page.slider_o.item}
-          getDescriptor={this.props.getDescriptor}
-          descriptors={this.props.descriptors}
+          data={item.slider_o}
+          getItem={this.props.getItem}
+          items={this.props.items}
         >
         </Slider>
       );
     }
   }
 
-  renderHomeContent(descriptor) {
-    var page = descriptor.page,
-      categories = [
-        {
-          key: 'featured-videos',
-          value: 'Featured Videos',
-          query: {
-            'bool': {
-              'filter': [
-                {
-                  'bool': {
-                    'should': [
-                      {
-                        'match': {
-                          'content-type': '/component/youtube-video'
-                        }
-                      },
-                      {
-                        'match': {
-                          'content-type': '/component/video-on-demand'
-                        }
+  renderHomeContent(item) {
+    var categories = [
+      {
+        key: 'featured-videos',
+        value: 'Featured Videos',
+        query: {
+          'bool': {
+            'filter': [
+              {
+                'bool': {
+                  'should': [
+                    {
+                      'match': {
+                        'content-type': '/component/youtube-video'
                       }
-                    ],
-                  }
-                },
-                {
-                  'match': {
-                    'featured_b': true
-                  }
-                }
-              ]
-            }
-          },
-          numResults: page.maxVideosDisplay_i
-        },
-        {
-          key: 'latest-videos',
-          value: 'Latest Videos',
-          query: {
-            'bool': {
-              'filter': [
-                {
-                  'bool': {
-                    'should': [
-                      {
-                        'match': {
-                          'content-type': '/component/youtube-video'
-                        }
-                      },
-                      {
-                        'match': {
-                          'content-type': '/component/video-on-demand'
-                        }
+                    },
+                    {
+                      'match': {
+                        'content-type': '/component/video-on-demand'
                       }
-                    ]
-                  }
+                    }
+                  ],
                 }
-              ]
-            },
-          },
-          sort: {
-            by: 'date_dt',
-            order: 'desc'
-          },
-          numResults: page.maxVideosDisplay_i
+              },
+              {
+                'match': {
+                  'featured_b': true
+                }
+              }
+            ]
+          }
         },
-        {
-          key: 'featured-channels',
-          value: 'Featured Channels',
-          type: 'channel-card-alt',
-          query: {
-            'bool': {
-              'filter': [
-                {
-                  'match': {
-                    'content-type': '/component/component-channel'
-                  }
-                },
-                {
-                  'match': {
-                    'featured_b': true
-                  }
+        numResults: item.maxVideosDisplay_i
+      },
+      {
+        key: 'latest-videos',
+        value: 'Latest Videos',
+        query: {
+          'bool': {
+            'filter': [
+              {
+                'bool': {
+                  'should': [
+                    {
+                      'match': {
+                        'content-type': '/component/youtube-video'
+                      }
+                    },
+                    {
+                      'match': {
+                        'content-type': '/component/video-on-demand'
+                      }
+                    }
+                  ]
                 }
-              ]
-            }
+              }
+            ]
           },
-          numResults: page.maxChannelsDisplay_i
-        }
-      ];
+        },
+        sort: {
+          by: 'date_dt',
+          order: 'desc'
+        },
+        numResults: item.maxVideosDisplay_i
+      },
+      {
+        key: 'featured-channels',
+        value: 'Featured Channels',
+        type: 'channel-card-alt',
+        query: {
+          'bool': {
+            'filter': [
+              {
+                'match': {
+                  'content-type': '/component/component-channel'
+                }
+              },
+              {
+                'match': {
+                  'featured_b': true
+                }
+              }
+            ]
+          }
+        },
+        numResults: item.maxChannelsDisplay_i
+      }
+    ];
 
     return (
       <div>
-        {this.renderSlider(descriptor)}
+        {this.renderSlider(item)}
 
         <VideoCategories categories={categories}>
         </VideoCategories>
@@ -141,12 +141,12 @@ class Home extends Component {
   }
 
   render() {
-    var { descriptors } = this.props;
+    var { items } = this.props;
 
     return (
       <div>
-        {descriptors && descriptors[this.descriptorUrl] &&
-        this.renderHomeContent(descriptors[this.descriptorUrl])
+        {items?.[this.descriptorUrl] &&
+          this.renderHomeContent(parseDescriptor(items[this.descriptorUrl]))
         }
       </div>
     );
@@ -156,7 +156,7 @@ class Home extends Component {
 function mapStateToProps(store) {
   return {
     videoStatus: store.video.videoStatus,
-    descriptors: store.craftercms.descriptors.entries
+    items: store.craftercms.items.entries,
   };
 }
 
@@ -165,9 +165,7 @@ function mapDispatchToProps(dispatch) {
     setVideoDocked: (docked) => {
       dispatch(setVideoDocked(docked));
     },
-    getDescriptor: (url) => {
-      dispatch(getDescriptor(url));
-    },
+    getItem: (url) => dispatch(getItem({url, config: { flatten: true }})),
     setHeaderGhost: (ghost) => {
       dispatch(setHeaderGhost(ghost));
     }
